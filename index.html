@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prixa — Image Viewer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0e0e0e;
+      --surface: #161616;
+      --border: #242424;
+      --accent: #e8c547;
+      --accent-dim: #b89a2e;
+      --text: #f0f0f0;
+      --muted: #666;
+      --muted2: #444;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Grain overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 999;
+      opacity: 0.4;
+    }
+
+    /* Grid background */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* NAV */
+    nav {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 28px 24px;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .nav-logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.2rem;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .nav-tag {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 99px;
+    }
+
+    /* HERO */
+    .hero {
+      padding: 80px 0 60px;
+      position: relative;
+    }
+
+    .hero-eyebrow {
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 20px;
+      opacity: 0;
+      animation: fadeUp 0.6s ease forwards 0.1s;
+    }
+
+    .hero-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: clamp(3.5rem, 10vw, 7rem);
+      line-height: 0.95;
+      letter-spacing: -0.02em;
+      margin-bottom: 32px;
+      opacity: 0;
+      animation: fadeUp 0.6s ease forwards 0.2s;
+    }
+
+    .hero-title span {
+      color: var(--accent);
+    }
+
+    .hero-desc {
+      font-size: 0.95rem;
+      line-height: 1.8;
+      color: #aaa;
+      max-width: 520px;
+      margin-bottom: 48px;
+      opacity: 0;
+      animation: fadeUp 0.6s ease forwards 0.35s;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      opacity: 0;
+      animation: fadeUp 0.6s ease forwards 0.5s;
+    }
+
+    .btn-download {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--accent);
+      color: #0e0e0e;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 14px 28px;
+      border-radius: 4px;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-download::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: white;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .btn-download:hover {
+      background: #f0d060;
+      transform: translateY(-2px);
+    }
+
+    .btn-download:active {
+      transform: translateY(0);
+    }
+
+    .btn-download svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .hero-note {
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    /* DIVIDER */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 60px 0;
+      opacity: 0;
+      animation: fadeUp 0.6s ease forwards 0.6s;
+    }
+
+    /* FEATURES */
+    .features {
+      padding-bottom: 80px;
+      opacity: 0;
+      animation: fadeUp 0.6s ease forwards 0.7s;
+    }
+
+    .features-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 32px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      padding: 28px 24px;
+      transition: background 0.2s;
+    }
+
+    .feature-card:hover {
+      background: #1c1c1c;
+    }
+
+    .feature-icon {
+      font-size: 1.4rem;
+      margin-bottom: 14px;
+    }
+
+    .feature-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .feature-desc {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    /* FORMATS */
+    .formats {
+      padding-bottom: 80px;
+      opacity: 0;
+      animation: fadeUp 0.6s ease forwards 0.85s;
+    }
+
+    .formats-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .format-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .format-tag {
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      padding: 5px 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: #888;
+      background: var(--surface);
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .format-tag:hover {
+      border-color: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    /* FOOTER */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 28px 24px;
+      max-width: 860px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .footer-left {
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .footer-left span {
+      color: var(--accent);
+    }
+
+    .footer-right {
+      font-size: 0.72rem;
+      color: var(--muted2);
+      letter-spacing: 0.05em;
+    }
+
+    /* ANIMATIONS */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 480px) {
+      .hero { padding: 48px 0 40px; }
+      .hero-actions { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-logo">Prixa</div>
+    <div class="nav-tag">Windows Only · Free</div>
+  </nav>
+
+  <div class="container">
+
+    <section class="hero">
+      <p class="hero-eyebrow">The image viewer that never gives up</p>
+      <h1 class="hero-title">Open<br/><span>anything.</span></h1>
+      <p class="hero-desc">
+        Prixa loads every image format it can find — and when a file is corrupted,
+        it doesn't just crash. It digs in and renders whatever it can salvage.
+        Built-in converter. Dead simple. No bloat.
+      </p>
+      <div class="hero-actions">
+        <a href="YOUR_ADFOCUS_LINK_HERE" class="btn-download">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download Prixa
+        </a>
+        <span class="hero-note">Windows 10/11 · v1.0.0 · Free</span>
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <section class="features">
+      <p class="features-label">What it does</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🗂️</div>
+          <div class="feature-title">Universal Format Support</div>
+          <div class="feature-desc">PNG, JPEG, WebP, AVIF, TIFF, BMP, GIF, ICO, RAW camera formats and more. If it's an image, Prixa tries it.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔧</div>
+          <div class="feature-title">Corrupted File Recovery</div>
+          <div class="feature-desc">Four fallback methods to salvage broken or unrecognized files. Where other viewers give up, Prixa keeps going.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔄</div>
+          <div class="feature-title">Built-in Converter</div>
+          <div class="feature-desc">Open any image and export it as PNG, JPEG, BMP, TIFF, WebP, or ICO in one click. No extra software needed.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <div class="feature-title">Light on Resources</div>
+          <div class="feature-desc">Smart preview loading means it never hogs your RAM. Opens fast, stays fast, gets out of your way.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="formats">
+      <p class="formats-label">Supported formats</p>
+      <div class="format-tags">
+        <span class="format-tag">PNG</span>
+        <span class="format-tag">JPEG</span>
+        <span class="format-tag">WebP</span>
+        <span class="format-tag">AVIF</span>
+        <span class="format-tag">TIFF</span>
+        <span class="format-tag">BMP</span>
+        <span class="format-tag">GIF</span>
+        <span class="format-tag">ICO</span>
+        <span class="format-tag">PCX</span>
+        <span class="format-tag">TGA</span>
+        <span class="format-tag">HDR</span>
+        <span class="format-tag">EXR</span>
+        <span class="format-tag">CR2</span>
+        <span class="format-tag">NEF</span>
+        <span class="format-tag">ARW</span>
+        <span class="format-tag">DNG</span>
+        <span class="format-tag">ORF</span>
+        <span class="format-tag">RAF</span>
+        <span class="format-tag">+ more</span>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    <div class="footer-left">Made by an indie dev · <span>Prixa</span> v1.0.0</div>
+    <div class="footer-right">Windows 10 / 11 only</div>
+  </footer>
+
+</body>
+</html>
